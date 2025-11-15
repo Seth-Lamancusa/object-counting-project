@@ -18,7 +18,7 @@ class SimpleCNN(nn.Module):
         self.pool = nn.MaxPool2d(2, 2)
         
         # Fully connected layers
-        self.fc1 = nn.Linear(128 * 4 * 4, 512)  # Assuming 32x32 input -> 4x4 after 3 pools
+        self.fc1 = nn.Linear(128 * 16 * 16, 512)  # 256x256 image size -> 16x16 after 4 pools
         self.fc2 = nn.Linear(512, num_classes)
         
         # Activation and dropout
@@ -34,9 +34,11 @@ class SimpleCNN(nn.Module):
         
         # Convolutional block 3
         x = self.pool(self.relu(self.conv3(x)))
+
+        x = self.pool(x)
         
         # Flatten
-        x = x.view(-1, 128 * 4 * 4)
+        x = x.view(-1, 128 * 16 * 16)
         
         # Fully connected layers
         x = self.relu(self.fc1(x))
