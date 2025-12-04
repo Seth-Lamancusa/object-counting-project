@@ -1,59 +1,45 @@
-"""
-Main script to run CNN training.
-"""
 import torch
 from model import SimpleCNN
 from data_loader import get_data_loaders
-from train import train_model
-
+from train import train_process
 
 def main():
-    # Set random seed for reproducibility
-    torch.manual_seed(42)
+    # --- Configuration ---
+    JSON_FILE = 'data_mapping.json'
+    BATCH_SIZE = 16
+    NUM_EPOCHS = 20
+    LEARNING_RATE = 0.001
     
-    # Device configuration
+    # Check for GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Using device: {device}")
+    print(f"Running on device: {device}")
     
-    # Configuration
-    data_dir = './data'  # Change this to your data directory
-    batch_size = 32
-    num_epochs = 10
-    learning_rate = 0.001
-    image_size = 32  # Input image size
-    
-    # Load data
-    print("\nLoading data...")
-    train_loader, test_loader, num_classes = get_data_loaders(
-        batch_size=batch_size,
-        data_dir=data_dir,
-        image_size=image_size
-    )
-    print(f"Found {num_classes} classes")
-    
-    # Initialize model
-    print("\nInitializing model...")
-    model = SimpleCNN(num_classes=num_classes, input_channels=3)
-    print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
-    
-    # Train model
-    print("\nStarting training...")
-    history = train_model(
+    # 1. Load Data
+    print("Loading data...")
+    try:
+        train_loader, test_loader = get_data_loaders(batch_size=BATCH_SIZE, json_file=JSON_FILE)
+        print("Data loaded successfully.")
+    except Exception as e:
+        print(f"Error loading data: {e}")
+        return
+
+    # 2. Initialize Model
+    # We have 10 classes (0 to 9 objects)
+    model = SimpleCNN().to(device)
+
+    # 3. Start Training
+    train_process(
         model=model,
         train_loader=train_loader,
         test_loader=test_loader,
-        num_epochs=num_epochs,
-        learning_rate=learning_rate,
+        num_epochs=NUM_EPOCHS,
+        learning_rate=LEARNING_RATE,
         device=device
     )
     
-    # Save model
-    torch.save(model.state_dict(), 'model.pth')
-    print("\nModel saved to 'model.pth'")
-    
-    print("\nTraining completed!")
-
+    # 4. Save Model
+    torch.save(model.state_dict(), 'counter_model.pth')
+    print("\nModel saved to 'counter_model.pth'")
 
 if __name__ == '__main__':
     main()
-

@@ -1,49 +1,36 @@
 import torch
 import torch.nn as nn
 
-
 class SimpleCNN(nn.Module):
-    """
-    Simple CNN architecture for image classification.
-    """
-    def __init__(self, num_classes=10, input_channels=3):
+    def __init__(self):
         super(SimpleCNN, self).__init__()
         
-        # Convolutional layers
-        self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        # Block 1
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
+        self.conv4 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1)
         
-        # Pooling layer
-        self.pool = nn.MaxPool2d(2, 2)
-        
-        # Fully connected layers
-        self.fc1 = nn.Linear(128 * 16 * 16, 512)  # 256x256 image size -> 16x16 after 4 pools
-        self.fc2 = nn.Linear(512, num_classes)
-        
-        # Activation and dropout
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.5)
         
+        # Flatten size for 256x256 input -> 128 channels * 16 * 16
+        self.flatten_size = 128 * 16 * 16 
+        self.fc1 = nn.Linear(self.flatten_size, 128)
+        
+        self.fc2 = nn.Linear(128, 1)
+        
     def forward(self, x):
-        # Convolutional block 1
         x = self.pool(self.relu(self.conv1(x)))
-        
-        # Convolutional block 2
         x = self.pool(self.relu(self.conv2(x)))
-        
-        # Convolutional block 3
         x = self.pool(self.relu(self.conv3(x)))
-
-        x = self.pool(x)
+        x = self.pool(self.relu(self.conv4(x)))
         
-        # Flatten
-        x = x.view(-1, 128 * 16 * 16)
+        x = x.view(-1, self.flatten_size)
         
-        # Fully connected layers
         x = self.relu(self.fc1(x))
         x = self.dropout(x)
         x = self.fc2(x)
         
         return x
-

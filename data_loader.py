@@ -1,112 +1,57 @@
 import torch
 from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms, datasets
+from torchvision import transforms
+from PIL import Image
 import os
+import json
 
-
-def get_data_loaders(batch_size=32, data_dir='./data', image_size=32):
-    """
-    Get data loaders for custom data directory.
-    
-    Expected directory structure:
-        data_dir/
-            train/
-                class1/
-                    img1.jpg
-                    img2.jpg
-                    ...
-                class2/
-                    img1.jpg
-                    ...
-            test/ (or val/)
-                class1/
-                    img1.jpg
-                    ...
-                class2/
-                    img1.jpg
-                    ...
-    
-    Args:
-        batch_size: Batch size for data loaders
-        data_dir: Root directory containing train/ and test/ subdirectories
-        image_size: Target image size (will be resized to image_size x image_size)
-        
-    Returns:
-        train_loader: DataLoader for training data
-        test_loader: DataLoader for test data
-        num_classes: Number of classes detected
-    """
-    # Data transformations
-    train_transform = transforms.Compose([
-        transforms.Resize((image_size, image_size)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(10),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
-    
-    test_transform = transforms.Compose([
-        transforms.Resize((image_size, image_size)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
-    
-    # Load datasets
-    train_dir = os.path.join(data_dir, 'train')
-    test_dir = os.path.join(data_dir, 'test')
-    
-    # Fallback to 'val' if 'test' doesn't exist
-    if not os.path.exists(test_dir):
-        test_dir = os.path.join(data_dir, 'val')
-    
-    train_dataset = datasets.ImageFolder(
-        root=train_dir,
-        transform=train_transform
-    )
-    
-    test_dataset = datasets.ImageFolder(
-        root=test_dir,
-        transform=test_transform
-    )
-    
-    num_classes = len(train_dataset.classes)
-    
-    # Create data loaders
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=2
-    )
-    
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=2
-    )
-    
-    return train_loader, test_loader, num_classes
-
-
-class CustomDataset(Dataset):
-    """
-    Custom dataset class for loading your own data.
-    """
-    def __init__(self, data, labels, transform=None):
-        self.data = data
-        self.labels = labels
+class CountDataset(Dataset):
+    def __init__(self, json_file, transform=None):
+        with open(json_file, 'r') as f:
+            # We load the 'data' key from your json
+            self.data_info = json.load(f)['data']
         self.transform = transform
-    
-    def __len__(self):
-        return len(self.data)
-    
-    def __getitem__(self, idx):
-        sample = self.data[idx]
-        label = self.labels[idx]
-        
-        if self.transform:
-            sample = self.transform(sample)
-        
-        return sample, label
 
+    def __len__(self):
+        return len(self.data_info)
+
+    def __getitem__(self, idx):
+        # Get path from JSON
+        img_path = self.data_info[idx]['fileName']
+        
+        # Convert string label (e.g., "9") to integer
+        label = int(self.data_info[idx]['objectCount'])
+        
+        # Load Image
+        try:
+            image = Image.open(img_path).convert('RGB')
+        except FileNotFoundError:
+            print(f"Warning: Could not find {img_path}, returning black image.")
+            image = Image.new('RGB', (256, 256)) 
+
+        if self.transform:
+            image = self.transform(image)
+            
+        return image, label
+
+def get_data_loaders(batch_size=16, json_file='labels.json'):
+    # FIXED: Resize to 256x256 to match the Model
+    transform = transforms.Compose([
+        transforms.Resize((256, 256)), 
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    ])
+    
+    full_dataset = CountDataset(json_file=json_file, transform=transform)
+    
+    # Split 80% train, 20% test
+    train_size = int(0.8 * len(full_dataset))
+    test_size = len(full_dataset) - train_size
+    
+    train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size])
+    
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    
+    # FIXED: Only return 2 values (train_loader, test_loader)
+    return train_loader, test_loader
