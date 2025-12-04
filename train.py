@@ -1,143 +1,72 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-
-def train_epoch(model, train_loader, criterion, optimizer, device):
-    """
-    Train the model for one epoch.
-    
-    Args:
-        model: The neural network model
-        train_loader: DataLoader for training data
-        criterion: Loss function
-        optimizer: Optimizer
-        device: Device to run training on (cuda or cpu)
-        
-    Returns:
-        Average training loss for the epoch
-    """
+def train_one_epoch(model, train_loader, criterion, optimizer, device):
     model.train()
     running_loss = 0.0
     correct = 0
     total = 0
     
-    for inputs, labels in tqdm(train_loader, desc="Training"):
-        inputs, labels = inputs.to(device), labels.to(device)
+    loop = tqdm(train_loader, desc="Training")
+    
+    for inputs, labels in loop:
+        inputs = inputs.to(device)
+        # REGRESSION CHANGE: Convert labels to float and reshape to [batch_size, 1]
+        labels = labels.to(device).float().unsqueeze(1)
         
-        # Zero gradients
         optimizer.zero_grad()
-        
-        # Forward pass
         outputs = model(inputs)
         loss = criterion(outputs, labels)
-        
-        # Backward pass
         loss.backward()
         optimizer.step()
         
-        # Statistics
         running_loss += loss.item()
-        _, predicted = torch.max(outputs.data, 1)
+        
+        # REGRESSION ACCURACY: Round the float output to nearest int
+        predicted = torch.round(outputs)
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
+        
+        loop.set_postfix(loss=loss.item())
     
-    epoch_loss = running_loss / len(train_loader)
     epoch_acc = 100 * correct / total
-    return epoch_loss, epoch_acc
-
+    return running_loss / len(train_loader), epoch_acc
 
 def validate(model, test_loader, criterion, device):
-    """
-    Validate the model on test data.
-    
-    Args:
-        model: The neural network model
-        test_loader: DataLoader for test data
-        criterion: Loss function
-        device: Device to run validation on (cuda or cpu)
-        
-    Returns:
-        Average validation loss and accuracy
-    """
     model.eval()
-    running_loss = 0.0
     correct = 0
     total = 0
+    val_loss = 0.0
     
     with torch.no_grad():
-        for inputs, labels in tqdm(test_loader, desc="Validating"):
-            inputs, labels = inputs.to(device), labels.to(device)
+        for inputs, labels in test_loader:
+            inputs = inputs.to(device)
+            # REGRESSION CHANGE: Match label shape/type for validation
+            labels = labels.to(device).float().unsqueeze(1)
             
             outputs = model(inputs)
             loss = criterion(outputs, labels)
+            val_loss += loss.item()
             
-            running_loss += loss.item()
-            _, predicted = torch.max(outputs.data, 1)
+            # Round to check for exact match
+            predicted = torch.round(outputs)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-    
-    epoch_loss = running_loss / len(test_loader)
-    epoch_acc = 100 * correct / total
-    return epoch_loss, epoch_acc
+            
+    return val_loss / len(test_loader), 100 * correct / total
 
-
-def train_model(model, train_loader, test_loader, num_epochs=10, learning_rate=0.001, device=None):
-    """
-    Complete training loop for the model.
-    
-    Args:
-        model: The neural network model
-        train_loader: DataLoader for training data
-        test_loader: DataLoader for test data
-        num_epochs: Number of epochs to train
-        learning_rate: Learning rate for optimizer
-        device: Device to run training on (cuda or cpu)
-        
-    Returns:
-        Training history (losses and accuracies)
-    """
-    if device is None:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    
-    model = model.to(device)
-    
-    # Loss and optimizer
-    criterion = nn.CrossEntropyLoss()
+def train_process(model, train_loader, test_loader, num_epochs, learning_rate, device):
+    # REGRESSION CHANGE: Use MSE Loss
+    criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    
-    # Training history
-    history = {
-        'train_loss': [],
-        'train_acc': [],
-        'val_loss': [],
-        'val_acc': []
-    }
-    
-    print(f"Training on device: {device}")
-    print(f"Number of epochs: {num_epochs}")
-    print("-" * 50)
     
     for epoch in range(num_epochs):
         print(f"\nEpoch {epoch+1}/{num_epochs}")
         
-        # Train
-        train_loss, train_acc = train_epoch(model, train_loader, criterion, optimizer, device)
-        
-        # Validate
+        train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc = validate(model, test_loader, criterion, device)
         
-        # Store history
-        history['train_loss'].append(train_loss)
-        history['train_acc'].append(train_acc)
-        history['val_loss'].append(val_loss)
-        history['val_acc'].append(val_acc)
-        
-        # Print results
-        print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
-        print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
-    
-    return history
-
+        print(f"Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.2f}%")
+        print(f"Val Loss:   {val_loss:.4f} | Val Acc:   {val_acc:.2f}%")
