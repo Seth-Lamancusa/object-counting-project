@@ -2,6 +2,7 @@ import torch
 from model import SimpleCNN
 from data_loader import get_data_loaders
 from train import train_process
+from visualize import show_conv_filters, show_predictions
 
 def main():
     # --- Configuration ---
