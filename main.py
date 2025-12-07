@@ -1,24 +1,21 @@
 import torch
 from model import SimpleCNN
 from data_loader import get_data_loaders
-from train import train_process, train_one_epoch, validate
-from visualize import visualize_feature_maps, train_with_curves
+from train import train_one_epoch, validate
+from visualize import visualize_feature_maps, train_with_curves, show_conv_filters, show_predictions
 import torch.nn as nn
 import torch.optim as optim
 
 
 def main():
-    # --- Configuration ---
     JSON_FILE = 'data_mapping.json'
     BATCH_SIZE = 16
     NUM_EPOCHS = 20
     LEARNING_RATE = 0.001
 
-    # Check for GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Running on device: {device}")
 
-    # 1. Load Data
     print("Loading data...")
     try:
         train_loader, test_loader = get_data_loaders(
@@ -28,11 +25,9 @@ def main():
         print(f"Error loading data: {e}")
         return
 
-    # 2. Initialize Model
-    # We have 10 classes (0 to 9 objects)
     model = SimpleCNN().to(device)
 
-    # 3. Start Training
+    # training with loss curves
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
@@ -46,13 +41,17 @@ def main():
         NUM_EPOCHS
     )
 
-    # 4. Save Model
+    print("\nVisualizing learned filters...")
+    show_conv_filters(model, "conv1")
+    show_conv_filters(model, "conv2")
+
     torch.save(model.state_dict(), 'counter_model.pth')
     print("\nModel saved to 'counter_model.pth'")
 
     example_img = "data/1_0.jpg"
-
     visualize_feature_maps(model, example_img, device, "conv1")
+
+    show_predictions(model, test_loader, device)
 
 
 if __name__ == '__main__':
