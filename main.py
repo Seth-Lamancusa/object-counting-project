@@ -37,7 +37,12 @@ def main():
         device=device
     )
     
-    # 4. Save Model
+     # 4. Visualization
+    print("\nVisualizing learned filters...")
+    show_conv_filters(model, "conv1")
+    show_conv_filters(model, "conv2")
+    
+    # 5. Save Model
     torch.save(model.state_dict(), 'counter_model.pth')
     print("\nModel saved to 'counter_model.pth'")
 
