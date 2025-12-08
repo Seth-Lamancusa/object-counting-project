@@ -58,9 +58,12 @@ def validate(model, test_loader, criterion, device):
     return val_loss / len(test_loader), 100 * correct / total
 
 def train_process(model, train_loader, test_loader, num_epochs, learning_rate, device):
-    # REGRESSION CHANGE: Use MSE Loss
+    # logic stays here
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    
+    train_losses = []
+    val_losses = []
     
     for epoch in range(num_epochs):
         print(f"\nEpoch {epoch+1}/{num_epochs}")
@@ -68,5 +71,10 @@ def train_process(model, train_loader, test_loader, num_epochs, learning_rate, d
         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc = validate(model, test_loader, criterion, device)
         
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
+        
         print(f"Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.2f}%")
         print(f"Val Loss:   {val_loss:.4f} | Val Acc:   {val_acc:.2f}%")
+
+    return train_losses, val_losses

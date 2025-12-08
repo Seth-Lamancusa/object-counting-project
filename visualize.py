@@ -36,21 +36,13 @@ def visualize_feature_maps(model, img_path, device, layer="conv1"):
     plt.show()
 
 
-def train_with_curves(model, train_loader, test_loader, optimizer, criterion, device, epochs):
-    tr = []
-    vl = []
-    for e in range(epochs):
-        a, _ = train_one_epoch(model, train_loader,
-                               criterion, optimizer, device)
-        b, _ = validate(model, test_loader, criterion, device)
-        tr.append(a)
-        vl.append(b)
+def plot_loss_curves(train_losses, val_losses):
     plt.figure(figsize=(7, 5))
-    plt.plot(tr, label="train")
-    plt.plot(vl, label="val")
+    plt.plot(train_losses, label="train")
+    plt.plot(val_losses, label="val")
     plt.xlabel("epoch")
     plt.ylabel("loss")
-    plt.title("train vs val loss")
+    plt.title("Train vs Val Loss")
     plt.legend()
     plt.tight_layout()
     plt.show()

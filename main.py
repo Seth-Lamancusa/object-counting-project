@@ -1,10 +1,8 @@
 import torch
 from model import SimpleCNN
 from data_loader import get_data_loaders
-from train import train_one_epoch, validate
-from visualize import visualize_feature_maps, train_with_curves, show_conv_filters, show_predictions
-import torch.nn as nn
-import torch.optim as optim
+from train import train_process
+from visualize import visualize_feature_maps, plot_loss_curves, show_conv_filters, show_predictions
 
 
 def main():
@@ -27,19 +25,16 @@ def main():
 
     model = SimpleCNN().to(device)
 
-    # training with loss curves
-    criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
-
-    train_with_curves(
-        model,
-        train_loader,
-        test_loader,
-        optimizer,
-        criterion,
-        device,
-        NUM_EPOCHS
+    train_losses, val_losses = train_process(
+        model, 
+        train_loader, 
+        test_loader, 
+        NUM_EPOCHS, 
+        LEARNING_RATE, 
+        device
     )
+
+    plot_loss_curves(train_losses, val_losses)
 
     print("\nVisualizing learned filters...")
     show_conv_filters(model, "conv1")
