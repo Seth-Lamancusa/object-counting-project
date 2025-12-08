@@ -2,13 +2,20 @@ import torch
 import matplotlib.pyplot as plt
 from torchvision import transforms
 from PIL import Image
+import os
 from train import train_one_epoch, validate
 
 
-def visualize_feature_maps(model, img_path, device, layer="conv1"):
+def visualize_feature_maps(model, img_path, device, layer="conv1", save_dir=None):
     t = transforms.Compose(
         [transforms.Resize((256, 256)), transforms.ToTensor()])
-    img = Image.open(img_path).convert("RGB")
+    
+    try:
+        img = Image.open(img_path).convert("RGB")
+    except FileNotFoundError:
+        print(f"File {img_path} not found. Skipping feature map viz.")
+        return
+
     x = t(img).unsqueeze(0).to(device)
     out = {}
 
@@ -33,10 +40,15 @@ def visualize_feature_maps(model, img_path, device, layer="conv1"):
         plt.imshow(f[0, i], cmap="gray")
         plt.axis("off")
     plt.tight_layout()
-    plt.show()
+
+    if save_dir:
+        plt.savefig(os.path.join(save_dir, f"feature_maps_{layer}.png"))
+        plt.close()
+    else:
+        plt.show()
 
 
-def train_with_curves(model, train_loader, test_loader, optimizer, criterion, device, epochs):
+def train_with_curves(model, train_loader, test_loader, optimizer, criterion, device, epochs, save_dir=None):
     tr = []
     vl = []
     for e in range(epochs):
@@ -45,6 +57,8 @@ def train_with_curves(model, train_loader, test_loader, optimizer, criterion, de
         b, _ = validate(model, test_loader, criterion, device)
         tr.append(a)
         vl.append(b)
+        
+
     plt.figure(figsize=(7, 5))
     plt.plot(tr, label="train")
     plt.plot(vl, label="val")
@@ -53,10 +67,15 @@ def train_with_curves(model, train_loader, test_loader, optimizer, criterion, de
     plt.title("train vs val loss")
     plt.legend()
     plt.tight_layout()
-    plt.show()
+
+    if save_dir:
+        plt.savefig(os.path.join(save_dir, "loss_curves.png"))
+        plt.close()
+    else:
+        plt.show()
 
 
-def show_conv_filters(model, layer_name="conv1", max_filters=12):
+def show_conv_filters(model, layer_name="conv1", max_filters=12, save_dir=None):
     layer = getattr(model, layer_name)
     weights = layer.weight.data.clone()
 
@@ -70,10 +89,15 @@ def show_conv_filters(model, layer_name="conv1", max_filters=12):
         axes[i].axis('off')
 
     plt.tight_layout()
-    plt.show()
+
+    if save_dir:
+        plt.savefig(os.path.join(save_dir, f"filters_{layer_name}.png"))
+        plt.close()
+    else:
+        plt.show()
 
 
-def show_predictions(model, loader, device):
+def show_predictions(model, loader, device, save_dir=None):
     model.eval()
     imgs, labels = next(iter(loader))
     outputs = model(imgs.to(device)).cpu().detach().numpy().flatten()
@@ -85,8 +109,13 @@ def show_predictions(model, loader, device):
     for i in range(8):
         axes[i].imshow(imgs[i].permute(1, 2, 0)*0.5 + 0.5)
         axes[i].set_title(
-            f"True labels: {labels[i]}\nPredicted labels: {int(preds[i])}")
+            f"True: {int(labels[i].item())}\nPred: {int(preds[i])}")
         axes[i].axis("off")
 
     plt.tight_layout()
-    plt.show()
+
+    if save_dir:
+        plt.savefig(os.path.join(save_dir, "predictions.png"))
+        plt.close()
+    else:
+        plt.show()
